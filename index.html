@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head>
+    <meta charset="UTF-8">
+    <link rel="manifest" href="manifest.json">
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>AmbWebCrypt (pd5c)</title>
+    <style>
+:root {
+    --primary: #00ff41; 
+    --warn: #ff9100; 
+    --danger: #ff4444; 
+    --bg: #111; 
+    --panel: #0a0a0a; 
+    --text: #d1d1d1; 
+}
+* {box-sizing: border-box; margin: 0; padding: 0; }
+
+body {font-family: Consolas, monospace;background: var(--bg);color: var(--text);padding: 10px; /* 手机端外边距减半 */line-height: 1.5;}
+.container {max-width:900px; margin: 0 auto;border:1px solid #333;padding:15px;/*内部边距减小，释放更多空间*/background: var(--panel); box-shadow: 0 0 20px rgba(0,0,0,0.5);}
+/* 针对手机端的优化：彻底去掉多余边框 */
+@media (max-width: 600px) {body{padding:5px;}
+.container{padding:10px;border: none;}/*手机端去掉大边框*/.opt-group {padding:8px;}}
+
+.tabs {display:flex;margin:15px 0;border:1px solid #333;border-radius:4px;overflow: hidden; }
+.tab-btn {flex: 1; 
+    padding: 12px 5px; 
+    background: #1a1a1a; 
+    border: none; 
+    color: #999; 
+    cursor: pointer; 
+    font-family: inherit; 
+    font-size: 14px;
+    white-space: nowrap;
+}
+.tab-btn.active {background: var(--primary); color: #000; }
+
+.tab-content {display: none; }
+.tab-content.active {display: block; }
+
+.input-group {margin: 15px 0; }
+label {display: block; margin-bottom: 8px; color: var(--warn); font-size: 0.9rem; }
+
+textarea, input[type="text"], input[type="number"], select {
+    width: 100%; 
+    background: #222; 
+    border: 1px solid #444; 
+    color: #fff; 
+    padding: 10px; 
+    font-family: inherit; 
+}
+
+button {
+    padding: 10px 20px; 
+    background: var(--primary); 
+    color: #000; 
+    border: none; 
+    font-weight: bold; 
+    cursor: pointer; 
+    margin-top: 10px; 
+}
+
+.btn-secondary {background: #333; color: #fff; border: 1px solid #444; }
+button:disabled { background: #666 !important; color: #999 !important; cursor: not-allowed !important; }
+.opt-group {
+    margin: 15px 0; 
+    padding: 12px; 
+    background: #161616; 
+    border: 1px solid #333; 
+    border-radius: 4px;
+}
+
+.res-textarea {
+    height: 180px; 
+    background: #000; 
+    color: var(--primary); 
+    border: 1px solid var(--primary); 
+    font-size: 13px; 
+}
+
+.identity-badge {
+    margin: 10px 0; 
+    padding: 8px; 
+    background: #000; 
+    text-align: center; 
+    font-size: 0.9rem;
+}
+
+.drop-hint {
+    position: fixed; /* 必须是 fixed，才能悬浮在网页之上而不占位 */
+    top: 0; left: 0; right: 0; bottom: 0; 
+    background: rgba(0, 255, 65, 0.2); /* 淡淡的绿色遮罩 */
+    border: 4px dashed var(--primary); 
+    display: none; /* 默认必须隐藏 */
+    align-items: center; 
+    justify-content: center; 
+    font-size: 2rem; 
+    color: var(--primary); 
+    z-index: 9999; /* 确保在最上层 */
+    pointer-events: none; /* 确保不干扰鼠标点击 */
+}
+
+.drop-hint.show {
+    display: flex; /* 只有在拖拽文件进入时才显示 */
+}
+</style>
+<link id="via_inject_css_blocker" type="text/css" rel="stylesheet" href="https://j.157126.xyz/via_inject_blocker.css"><style type="text/css" id="__via_marker__"></style></head>
+<body>
+<!-- 自动处理全屏界面 -->
+<div id="loader-screen" style="display:none; max-width: 600px; margin: 30px auto; padding: 20px; background: #0a0a0a; border: 1px solid #333; color: #fff; font-family: Consolas, monospace; border-radius: 8px;">
+<!-- 修复后（直接替换loader-screen内的标题区域） -->
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px;">
+    <h1 style="font-size: clamp(16px, 5vw, 22px); white-space: nowrap; margin: 0; color: var(--primary); border: none; padding: 0;">🔤 AmbWebCrypt (pd5c)</h1>
+    <button onclick="backupTool()" style="background: none; border: 1px solid #444; color: #888; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; flex-shrink: 0; white-space: nowrap; margin: 0;">
+        💾 保存本页
+    </button>
+</div>
+<div style="font-size: clamp(14px, 3vw, 16px); color: var(--warn); font-weight: bold; text-align: center; margin-bottom: 20px;">
+    🎉 2026新年快乐 🎉
+</div>
+
+    <!-- 步骤 1 & 2 保持不变... -->
+    <div id="step1-box" style="margin-bottom: 20px;">
+        <div id="step1-status" style="color: var(--warn); font-weight: bold;">(进行中) 1.下载原始数据流</div>
+        <div id="progress-container" style="display: none; height: 10px; background: #222; border: 1px solid #444; margin: 10px 0; border-radius: 5px; overflow: hidden;">
+            <div id="step1-fill" style="height: 100%; background: var(--primary); width: 0%;"></div>
+        </div>
+        <div id="step1-stats" style="font-size: 0.85rem; color: #aaa; margin-top: 5px;">准备中...</div>
+    </div>
+
+    <div id="step2-box" style="margin-bottom: 20px;">
+        <div id="step2-status" style="color: #444; font-weight: bold;">(等待中) 2. 解密数据</div>
+        <div style="height: 4px; background: #222; margin-top: 8px; border-radius: 2px; overflow: hidden;">
+            <div id="step2-fill" style="height: 100%; background: var(--primary); width: 0%;"></div>
+        </div>
+    </div>
+
+    <!-- 步骤 3: 触发下载 -->
+    <div id="step3-box" style="margin-bottom: 20px;">
+        <div id="step3-status" style="color: #444; font-weight: bold;">(等待中) 3. 触发下载</div>
+        <p style="font-size: 0.8rem; color: #666; margin: 10px 0 8px 0;">若浏览器未自动下载，请点击下方按钮：</p>
+        <button id="manual-dl-btn" disabled="" onclick="dlDec()" style="width: 100%; padding: 12px; background: #333; color: #666; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-family: inherit;">
+            💾 下载解密后文件
+        </button>
+        <div id="loader-warning-msg" style="display:none; color:orange; margin-bottom: 10px; padding: 5px; border: 1px solid orange; background-color: #332b00; border-radius: 3px;"></div>
+    </div>
+
+    <!-- 新增：自动下载界面的结果预览区 -->
+    <div id="loader-result" style="display:none; border-top: 1px solid #333; padding-top: 15px; margin-top: 15px;">
+        <div id="loader-identity" style="margin-bottom: 10px; font-size: 0.9rem;"></div>
+        <div id="loader-stats" style="font-size: 0.8rem; color: #888; margin-bottom: 10px;"></div>
+        
+        <!-- 媒体预览 -->
+        <div id="loader-preview-img" style="display:none; text-align:center; background:#000; padding:10px; border:1px solid #222;">
+            <div id="loader-img"></div>
+        </div>
+        
+        <!-- 文本预览 -->
+        <div id="loader-preview-txt" style="display:none;">
+            <textarea id="loader-txt-area" readonly="" style="width:100%; height:200px; background:#000; color:#fff; border:1px solid #444; font-family:inherit; padding:10px; font-size:12px;"></textarea>
+        </div>
+    </div>
+</div>
+<div class="drop-hint" id="drop-hint">📁 释放文件以导入</div>
+
+<!-- 替换为下方带有 id 的版本 -->
+<div id="header-area" style="display: flex; flex-direction: column; gap: 8px; border-bottom: 2px solid var(--primary); margin-bottom: 20px; padding-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+        <h1 style="font-size: clamp(16px, 5vw, 22px); white-space: nowrap; margin: 0; color: var(--primary); border: none; padding: 0;">🔤 AmbWebCrypt (pd5c)</h1>
+        <button onclick="backupTool()" style="background: none; border: 1px solid #444; color: #888; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; flex-shrink: 0; white-space: nowrap; margin: 0;">
+            💾 保存本页
+        </button>
+    </div>
+    <div style="font-size: clamp(14px, 3vw, 16px); color: var(--warn); font-weight: bold; text-align: center;">
+        🎉 2026新年快乐 🎉
+    </div>
+</div>
+
+<div id="dec-warning-msg" style="display:none; color:orange; margin-bottom: 10px; padding: 5px; border: 1px solid orange; background-color: #332b00; border-radius: 3px;"></div>
+    <!-- 标签切换栏 -->
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('encode')">🔢 加密</button>
+        <button class="tab-btn" onclick="switchTab('decode')">🔤 解密</button>
+        <button class="tab-btn" onclick="switchTab('keygen')">🔑 密钥生成</button>
+    </div>
+
+    <!-- 1. 编码面板 -->
+    <div id="encode-tab" class="tab-content active">
+<!-- 替换加密面板的“选择文件”区域 -->
+<div class="input-group">
+    <label>1. 内容录入</label>
+    <textarea id="encode-text" placeholder="在此输入文字..." style="height: 300px;"></textarea>
+    <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <!-- 关键：label的for属性与input的id绑定，确保点击标签触发输入框 -->
+        <label for="encode-file-input" class="file-btn" style="margin: 0; flex: 1; text-align: center; background: #333; border: 1px solid #444; padding: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; color: #fff; font-weight: bold; border-radius: 4px;">
+            📁 选择文件
+        </label>
+        <!-- 隐藏的文件输入框，id必须与label的for一致 -->
+        <input type="file" id="encode-file-input" style="display:none" onchange="handleFile(this.files[0], 'encode')">
+        <button class="btn-secondary" onclick="clearAll('encode')" style="margin: 0; flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; height: 44px; border-radius: 4px;">
+            🧹 清空
+        </button>
+    </div>
+    <div class="file-info" id="e-file-info" style="display: none;"></div>
+</div>
+<div class="opt-group">
+<label style="color:var(--warn); margin-bottom:12px">2. 压缩与加密设置</label>
+    <div style="margin-bottom: 15px;">
+        <label style="display:inline-block; white-space:nowrap; margin-right:15px; cursor:pointer">
+            <input type="checkbox" id="gzip-enable" checked=""> 启用 Gzip 压缩
+        </label>
+        <label style="display:inline-block; white-space:nowrap; cursor:pointer">
+            <input type="checkbox" id="img-comp" checked="" onchange="reprocImg()"> 图像预处理
+        </label>
+    </div>
+
+<!-- 缩放模式：通过 gap 控制间距，row-gap 控制折行后的行间距 -->
+<div style="margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 5px;">
+    <span style="font-size:0.85rem; color:#aaa; white-space:nowrap;">缩放模式:</span>
+    <label style="white-space:nowrap; cursor:pointer; display: flex; align-items: center; gap: 3px;"><input type="radio" name="rmode" value="pixel" checked="" onclick="handleModeChange(true, 5)"> 像素</label>
+    <label style="white-space:nowrap; cursor:pointer; display: flex; align-items: center; gap: 3px;"><input type="radio" name="rmode" value="short" onclick="handleModeChange(true, 240)"> 短边</label>
+    <label style="white-space:nowrap; cursor:pointer; display: flex; align-items: center; gap: 3px;"><input type="radio" name="rmode" value="long" onclick="handleModeChange(true, 640)"> 长边</label>
+    <label style="white-space:nowrap; cursor:pointer; display: flex; align-items: center; gap: 3px;"><input type="radio" name="rmode" value="orig" onclick="handleModeChange(true, 100)"> 原图</label>
+</div>
+
+<!-- 数值与质量 -->
+<div style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+    <span id="val-input-wrap" style="display: flex; align-items: center;">
+        数值: <input type="number" id="img-val" step="0.1" value="5" style="width:65px; padding:5px; margin:0 3px; background:#222; border:1px solid #444; color:#fff;text-align: center;">
+        <span id="unit-text" style="font-size:0.85rem; color:#aaa;">万</span>
+    </span>
+    <span style="display: flex; align-items: center;">
+        质量: <input type="number" id="img-q" value="30" style="width:42px; padding:5px; margin:0 3px; background:#222; border:1px solid #444; color:#fff;text-align: center;">%
+    </span>
+    <button class="btn-secondary" onclick="reprocImg()" style="padding:4px 8px; font-size:12px; margin:0; flex-shrink:0;">🔄 刷新预览</button>
+</div>
+<div style="margin-bottom: 15px; border: 1px dashed #444; padding: 8px; border-radius: 4px; display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; row-gap: 8px;">
+    <span style="font-size:0.85rem; color:#aaa; white-space:nowrap;">加密算法:</span>
+    <label style="display: inline-flex; align-items: center; white-space:nowrap; cursor:pointer; gap: 4px;">
+        <input type="radio" name="algo" value="0" onchange="checkEncIdentity()"> CBC
+    </label>
+    <label style="display: inline-flex; align-items: center; white-space:nowrap; cursor:pointer; gap: 4px;">
+        <input type="radio" name="algo" value="1" checked="" onchange="checkEncIdentity()"> GCM
+    </label>
+    <label style="display: inline-flex; align-items: center; white-space:nowrap; cursor:pointer; gap: 4px;">
+        <input type="radio" name="algo" value="2" onchange="checkEncIdentity()"> P384
+    </label>
+    <label style="display: inline-flex; align-items: center; white-space:nowrap; cursor:pointer; gap: 4px;">
+        <input type="radio" name="algo" value="3" onchange="checkEncIdentity()"> ED25519（仅支持私钥签名。数据不会加密！）
+    </label>
+</div>
+<!-- 密钥输入框 -->
+<input type="text" id="e-key" oninput="checkEncIdentity()" class="pwd-input" placeholder="加密密钥 (P384填公钥ED25519填私钥)">
+
+<!-- 新增：身份识别提示行 -->
+<div id="enc-identity-msg" style="font-size: 0.8rem; margin-top: 5px; min-height: 1.2em; padding-left: 5px;"></div>
+        <!-- 编码执行按钮（在面板内） -->
+        <button id="btn-do-encode">🚀 执行编码</button>
+
+        <div class="result" id="e-result" style="display: none;">
+            <div class="size-info" id="e-stats"></div>
+            <textarea id="res-show-area" class="res-textarea" readonly=""></textarea>
+            <div style="margin-top:10px">
+                <button onclick="copyRes()">📋 复制全量编码</button>
+                <button onclick="dlRes('txt')" class="btn-secondary">📄 下载TXT</button>
+                <button onclick="dlRes('bin')" class="btn-secondary">📦 下载BIN</button>
+            </div>
+        </div>
+    </div>
+</div>
+    <!-- 2. 解码面板 -->
+    <div id="decode-tab" class="tab-content">
+        <div class="input-group">
+            <label>1. 编码录入 (支持拖入文件)</label>
+<textarea id="decode-input" placeholder="粘贴编码文字..." style="height: 160px;" oninput="syncBinCheckbox()"></textarea>
+<div style="display: flex !important; flex-direction: row; gap: 10px; margin-top: 10px; width: 100%;">
+    <label class="file-btn" style="margin: 0; flex: 1; text-align: center; background: #333; border: 1px solid #444; padding: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; color: #fff; font-weight: bold; border-radius: 4px; white-space: nowrap;">
+        📁 选择文件 <input type="file" style="display:none" onchange="handleFile(this.files[0], 'decode')">
+    </label>
+    <button class="btn-secondary" onclick="clearAll('decode')" style="margin: 0; flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; height: 46px; border-radius: 4px; white-space: nowrap; width: auto;">
+        🧹 清空
+    </button>
+</div>
+            <div class="file-info" id="d-file-info" style="display: none;"></div>
+<div style="margin: 15px 0 10px 0;">
+    <label style="cursor:pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; color: #fff;">
+        <input type="checkbox" id="is-bin" style="margin:0;"> 导入的文件是二进制 (.bin)
+    </label>
+</div>
+        </div>
+
+        <div class="opt-group">
+            <label style="color:var(--warn)">2. 解密设置</label>
+            <input type="text" id="d-key" class="pwd-input" placeholder="解密密钥 (P384填私钥ED25519填公钥)">
+        </div>
+
+<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 15px; margin-top: 10px;">
+<!-- 统一样式的还原按钮与身份提示 -->
+<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+<button id="btn-do-decode" onclick="doDecode()">🔓 执行还原</button>
+    <!-- 身份提示放在按钮右边，空间不足自动换行 -->
+    <span id="dec-identity-msg" style="font-size: 0.85rem; line-height: 1.4; color: #aaa;"></span>
+</div>
+</div>
+<div class="result" id="d-result" style="display: none;">
+    <div style="margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:15px">
+        <button onclick="dlDec()">💾 下载还原文件</button>
+        <span class="size-info" id="d-stats" style="margin-left:15px"></span>
+    </div>
+    <div id="d-preview-img" class="preview-area" style="display:none"><label>🖼️ 媒体预览</label><div id="d-img"></div></div>
+    <div id="d-preview-txt" class="preview-area" style="display:none">
+        <label>📝 文本内容 (上限100K):</label>
+        <textarea id="d-txt-area" class="res-textarea" style="height:300px; color:#fff; border-color:#444"></textarea>
+    </div>
+</div>
+</div>
+<div id="keygen-tab" class="tab-content">
+    <div class="input-group">
+        <label>🔐 密钥对管理</label>
+        <div class="opt-group" style="background:#111; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="color: var(--warn); margin: 0; font-size: 1rem;">非对称加密密钥 (P-384)</h3>
+                <button onclick="generateP384Keys()" style="background:var(--warn); color:#000; margin:0; padding: 6px 12px; font-weight: bold;">🔄 刷新/生成</button>
+            </div>
+            <div id="p384-identity-info" class="identity-badge" style="margin-bottom: 10px;"></div>
+            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 10px;">
+                <b style="color:var(--danger);">私钥</b> 用于解密您收到的信息。
+                <br><b style="color:var(--primary);">公钥</b> 发给对方，让他们用此公钥加密信息给您。
+            </p>
+            
+            <label style="color:var(--danger)">私钥 (Private Key) - 严禁泄露</label>
+            <div style="display:flex; gap:10px; margin-bottom:15px">
+                <input type="text" id="p384-priv-key-display" readonly="" placeholder="尚未生成..." style="font-size:11px; flex:1; background:#000; border-color:#444; color:#fff; padding:10px">
+                <button onclick="copyKey('p384-priv-key-display')" class="btn-secondary" style="margin:0; padding:0 15px; flex-shrink:0">📋 复制</button>
+            </div>
+            
+            <label style="color:var(--primary)">公钥 (Public Key) - 发给对方</label>
+            <div style="display:flex; gap:10px">
+                <input type="text" id="p384-pub-key-display" readonly="" placeholder="尚未生成..." style="font-size:11px; flex:1; background:#000; border-color:#444; color:#fff; padding:10px">
+                <button onclick="copyKey('p384-pub-key-display')" class="btn-secondary" style="margin:0; padding:0 15px; flex-shrink:0">📋 复制</button>
+            </div>
+        </div>
+
+        <!-- Ed25519 身份认证密钥区域 -->
+        <div class="opt-group" style="background:#111;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="color: var(--warn); margin: 0; font-size: 1rem;">身份认证密钥 (Ed25519)</h3>
+                <button onclick="generateEd25519Keys()" style="background:var(--warn); color:#000; margin:0; padding: 6px 12px; font-weight: bold;">🔄 刷新/生成</button>
+            </div>
+            <div id="ed25519-identity-info" class="identity-badge" style="margin-bottom: 10px;"></div>
+            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 10px;">
+                <b style="color:var(--danger);">私钥</b> 用于对您发送的信息进行签名，证明信息来源。
+                <br><b style="color:var(--primary);">公钥</b> 发给对方，让他们用此公钥验证您签名的信息。
+            </p>
+
+            <label style="color:var(--danger)">私钥 (Private Key) - 严禁泄露</label>
+            <div style="display:flex; gap:10px; margin-bottom:15px">
+                <input type="text" id="ed25519-priv-key-display" readonly="" placeholder="尚未生成..." style="font-size:11px; flex:1; background:#000; border-color:#444; color:#fff; padding:10px">
+                <button onclick="copyKey('ed25519-priv-key-display')" class="btn-secondary" style="margin:0; padding:0 15px; flex-shrink:0">📋 复制</button>
+            </div>
+            
+            <label style="color:var(--primary)">公钥 (Public Key) - 发给对方</label>
+            <div style="display:flex; gap:10px">
+                <input type="text" id="ed25519-pub-key-display" readonly="" placeholder="尚未生成..." style="font-size:11px; flex:1; background:#000; border-color:#444; color:#fff; padding:10px">
+                <button onclick="copyKey('ed25519-pub-key-display')" class="btn-secondary" style="margin:0; padding:0 15px; flex-shrink:0">📋 复制</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 日志显示区 -->
+<div class="log" id="log" style="display: none;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <script>
+    const VER = "pd5c"; // 升级到 pd5c
+    const PLIM = 100000; 
+    const MAX_PIXELS = 10000000; 
+    const MAP = "零一二三四五六七八九十个百千万服多来米发锁拉系骇古极你歪它他她啊波次的饿歌喝以几可了们呢喔屏群人是烫鱼绿写用这莱方录鹿卢凹折山葱仪厂长秧同草末音菜酸汤名口窝填田土木火水金风雨石竹鸟马牛羊虫花树云雷雪星光天海湖林点线面体条猫狗搜库炮进城管锚泡抛刨袍图如吐加键减肥乘出除处初厨楚乔恩奖江姜酱犟僵耳儿文静网热卡空虚拟想希丁克门付款啦放大哦扩对皮肤看快手内存成绩差登记机声第集平时都觉得就行打击哒西到哪咳嗽带飞辛苦老试怕漏刷未微位小众中从聪信新旧杨样阳提清青酒流留物里例理力丽礼李立事史视率形之只染然似防重饭洗头连叫扣宜";
+    const HEX_MAP = "哈嘿嘻咕吱吧哔嘚嘛嘞嘎嘟啸嘶嚷噗";
+    const B2C = MAP.split(''), C2B = Object.fromEntries(B2C.map((c,i)=>[c,i]));
+    const ADMIN_P384_PUB_HEX = "047562a86fcd211fad72ef66958a1d6e9c2d05d749de8e1bad3a522460270dd9be619fdd78ab4a9e3ae3a60cc41cee5f7a2a6d16e93d28465fe80b341dd9518414466dd7c7fd5ae6395d1a8bd58504d24c5e3339f7494bbc4d4aa022726fb479d3"
+    const $ = id => document.getElementById(id);
+// 辅助工具：Hex与Buffer转换
+const hexToBuf = hex => {
+    try {
+        const clean = hex.trim();
+        if (clean.length % 2 !== 0) return null;
+        return new Uint8Array(clean.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+    } catch(e) {return null; }
+};
+const bufToHex = buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+const CryptoUtils = {
+    // 统一使用 SHA-256 的第 129-144 bit (字节索引 16, 17)
+    getShaChecksum: async (data) => {
+        const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+        const h = new Uint8Array(hashBuffer);
+        return (h[16] << 8) | h[17];
+    }
+};
+// --- 全局状态 ---
+let eData = null, oFile = null, dData = null;
+let decodeRawBuffer = null; 
+let decodeFileName = ""; 
+let resHeader = "";      
+let resTxt = "", resBin = null;
+let currentPreviewUrl = null; // 必须加上这一行，用于内存释放
+let isEncDataReady = false; // 显式声明加密就绪状态
+
+function formatTime(s) {
+    if (s <= 0 || !isFinite(s)) return "00:00";
+    const f = (v) => Math.floor(v).toString().padStart(2, '0');
+    if (s < 3600) return `${f(s/60)}:${f(s%60)}`;
+    if (s < 86400) return `${f(s/3600)}:${f((s%3600)/60)}:${f(s%60)}`;
+    const d = Math.floor(s/86400);
+    return `${d}天${f((s%86400)/3600)}:${f((s%3600)/60)}:${f(s%60)}`;
+}
+function getAutoExtension(bin) {
+    if (!bin || bin.length < 4) return '';
+    const h = Array.from(bin.slice(0, 32)).map(b => b.toString(16).padStart(2, '0')).join('');
+    if (h.startsWith('1a45dfa3')) return '.mkv';
+    if (h.startsWith('28b52ffd')) return '.zst'; 
+    if (h.startsWith('04224d18')) return '.lz4';
+    if (h.startsWith('1f8b08000000')) return '.gz';
+    if (h.startsWith('377abcaf271c')) return '.7z';
+    if (h.startsWith('504b0304')) return '.zip';
+    if (h.startsWith('89504e47')) return '.png';
+    if (h.startsWith('ffd8ff')) return '.jpg';
+    if (h.startsWith('53514c69746520666f726d61742033')) return '.sqlite';
+    if (h.includes('6674797061766966') || h.includes('6674797061766973')) return '.avif';
+    if (h.startsWith('25504446')) return '.pdf';
+    if (h.startsWith('47494638')) return '.gif';
+    if (h.startsWith('424d')) return '.bmp';
+    if (h.startsWith('464c5601')) return '.flv';
+    if (h.startsWith('4344303031')) return '.iso';
+    if (h.startsWith('474000') || h.startsWith('474001')) return '.ts';
+    if (h.startsWith('49492a00') || h.startsWith('4d4d002a')) return '.tif';
+    if (h.startsWith('52617221')) return '.rar';
+    if (h.startsWith('4f676753')) return '.ogg';
+    if (h.startsWith('664c6143')) return '.flac';
+    if (h.startsWith('4d546864')) return '.mid';
+    if (h.startsWith('4d5a') && h.includes('000000')) return '.exe';
+    if (h.startsWith('52494646')) {
+        if (bin.length >= 12) {
+            const type = h.substring(16, 24);
+            if (type === '57454250') return '.webp';
+            if (type === '57415645') return '.wav';
+            if (type === '41564920') return '.avi';
+        }
+        return '.riff';
+    }
+    if (bin.length > 262) {
+        const tarMagic = String.fromCharCode(...bin.slice(257, 262));
+        if (tarMagic === "ustar") return '.tar';
+    }
+    if (h.startsWith('000000')) {
+        if (h.includes('ffffff')) return '.cmix';
+        if (h.includes('667479704d3441')) return '.m4a';
+        if (h.includes('66747970')) return '.mp4';
+        return '.bin'; 
+    }
+    if (h.startsWith('494433') || h.startsWith('fffb') || h.startsWith('fff1')) return '.mp3';
+    return ''; 
+}
+let deferredPrompt;
+async function coreRestore(rawBin, pwd, sniffSource, fileName, rawFileBuf) {
+    const sixHeader = parseSixHeader(fileName, sniffSource, rawFileBuf);
+    const startTime = Date.now();
+    const isSixHeaderValid = !!(sixHeader && sixHeader.isValid);
+    const targetCksum = isSixHeaderValid ? sixHeader.cksumTarget : -1;
+
+    let algoOrder = [1, 2, 4, 5, 3, 0]; 
+    if (isSixHeaderValid) algoOrder = [sixHeader.firstAlgo, ...algoOrder.filter(a => a !== sixHeader.firstAlgo)];
+
+    let candidates = [];
+    let triedAlgoCount = 0;
+
+    for (const mode of algoOrder) {
+        if ((mode <= 2 || mode === 4) && !pwd) continue; 
+        
+        triedAlgoCount++;
+        let currentEd = { isEd: false, isAdmin: false, usedPubKey: null, sigValid: false };
+        let backupEd = edIdentity; 
+        edIdentity = currentEd;
+
+        let decrypted = null;
+        try { decrypted = await tryRestore(rawBin, pwd, mode); } catch (e) {}
+        edIdentity = backupEd; 
+
+        if (!decrypted || !decrypted.length) continue;
+
+        let score = 0;
+        // 核心判分：算法成功
+        if ([1, 2, 4].includes(mode)) score += 4; // GCM/P-384/吱 解密成功
+        if (currentEd.sigValid) score += 2;        // Ed签名验证成功
+
+        // 特征判定：GZIP
+        let finalData = decrypted;
+        if (decrypted.length > 2 && decrypted[0] === 0x1f && decrypted[1] === 0x8b) {
+            try {
+                finalData = pako.ungzip(decrypted);
+                score += 0.5; // GZIP解压成功
+            } catch (e) { finalData = decrypted; }
+        }
+
+        // 核心判分：校验和
+        const h = new Uint8Array(await window.crypto.subtle.digest('SHA-256', finalData));
+        const currentCksum = ((h[16] << 8) | h[17]) >>> 0;
+        if (isSixHeaderValid && currentCksum === targetCksum) score += 1;
+
+        // 弱特征判分
+        if (getAutoExtension(finalData)) score += 0.25; // 有扩展名特征
+        if (getAutoExtension(finalData) === '.bin') score -= 0.25;
+                if (getAutoExtension(finalData) === '.riff') score -= 0.125;
+        if (bufToHex(finalData.slice(0, 4)).startsWith('000000')) score += 0.125; // 0x000000开头等弱特征
+
+        candidates.push({ 
+            data: finalData, 
+            score: score, 
+            mode: mode, 
+            edState: currentEd, 
+            cksum: currentCksum 
+        });
+        if (score >= 4) break;
+    }
+if (!candidates.length) return null;
+    
+    // 1. 优化排序：评分高者优先；平分(0分)时，明文(Mode 5)排在最前
+    candidates.sort((a, b) => (b.score - a.score) || (a.mode === 5 ? -1 : (b.mode === 5 ? 1 : 0)));
+    
+    const best = candidates[0];
+    window.lastDecMode = best.mode;
+    window.lastDecScore = best.score;
+    window.edIdentity = best.edState;
+    window.decryptStats = { 
+        usedTime: ((Date.now() - startTime) / 1000).toFixed(3),
+        triedAlgoCount: triedAlgoCount 
+    };
+
+    // 2. 校验和判定
+    decWarning.active = (isSixHeaderValid && targetCksum !== 0 && best.cksum !== targetCksum);
+    if (decWarning.active) {
+        decWarning.message = `⚠️ 校验和不匹配 (预期:${targetCksum.toString(16)} 实际:${best.cksum.toString(16)})`;
+        
+        // --- 新增：并列0分且校验失败时弹出 Alert ---
+        if (best.score <= 0) {
+            alert("⚠️ 还原预警：\n校验和不匹配且未检测到任何有效的数据特征（评分 0.000）。\n请检查密钥是否正确，或数据是否完整。");
+        }
+    }
+
+    return best.data;
+}
+// 搜索并替换 getAlgoName 函数
+function getAlgoName(m) {
+    return ["CBC", "GCM", "P384", "Ed25519", "管理员签名的加密文件", "明文"][m] || "未知";
+}
+function dlDec() {
+    if (!dData) return;
+    const ext = getAutoExtension(dData);
+    let name = decodeFileName || "还原文件";
+    
+    // 1. 清理原有的 .bin 或 .txt 后缀，并根据识别结果添加新后缀
+    name = name.replace(/\.(bin|txt)$/i, '');
+    if (ext && !name.toLowerCase().endsWith(ext)) {
+        name += ext;
+    } else if (!ext && !name.includes('.')) {
+        name += '.bin'; 
+    }
+    
+    const blob = new Blob([dData]);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; 
+    a.download = name;
+    
+    // 2. 细节增强：必须挂载到 body 才能确保在某些严苛浏览器环境下触发下载
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    // 3. 核心修复：延时释放内存，防止连续下载导致内存溢出
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function formatSpeed(bytesPerSec) {
+    if (bytesPerSec < 1024) return bytesPerSec.toFixed(0) + " B/s";
+    if (bytesPerSec < 1048576) return (bytesPerSec / 1024).toFixed(2) + " KB/s";
+    return (bytesPerSec / 1048576).toFixed(2) + " MB/s";
+}
+let edIdentity = {isEd: false, isAdmin: false };
+let decWarning = {active: false, message: "" }; // 用于在解密成功但有疑虑时显示警告
+function parseSixHeader(fileName, textContent, rawBuf) {
+    const HEX_MAP = "哈嘿嘻咕吱吧哔嘚嘛嘞嘎嘟啸嘶嚷噗";
+    const scan = (str) => {
+        if (!str || typeof str !== 'string') return null;
+        let found = [];
+        const limit = Math.min(str.length, 500);
+        for (let i = 0; i < limit; i++) {
+            if (HEX_MAP.includes(str[i])) {
+                found.push(str[i]);
+                if (found.length === 6) return found;
+            }
+        }
+        return null;
+    };
+    // 嗅探地方1：文件流开头（针对导入的TXT文件）
+    let bufText = "";
+    if (rawBuf) {
+        try { bufText = new TextDecoder().decode(new Uint8Array(rawBuf).slice(0, 100)); } catch(e){}
+    }
+    // 优先级：文件名 > 文件开头 > 文本框内容
+    let chars = scan(fileName) || scan(bufText) || scan(textContent);
+    if (!chars) return { isValid: false, cksumTarget: -1 };
+    const idx = chars.map(c => HEX_MAP.indexOf(c));
+    return {
+        isValid: true,
+        cksumTarget: ((idx[0] << 12) | (idx[1] << 8) | (idx[2] << 4) | idx[3]) >>> 0, 
+        firstAlgo: idx[4], 
+        isEncrypted: idx[5] !== 5 
+    };
+}
+function checkEncIdentity() {
+    const valInput = $('e-key');
+    const msgBox = $('enc-identity-msg');
+    const algoEl = document.querySelector('input[name="algo"]:checked');
+    
+    if (!valInput || !msgBox || !algoEl) return;
+    const val = valInput.value.trim().toLowerCase();
+    const algoMode = algoEl.value;
+
+    if (!val) {msgBox.innerHTML = ""; return; }
+
+    // P-384 模式
+    if (algoMode === "2") {
+        if (val === ADMIN_P384_PUB_HEX.toLowerCase()) {
+            msgBox.innerHTML = `<span style="color:var(--primary)">✅ 正在向 <b>🛡️ 管理员</b> 发送加密信息</span>`;
+        } else if (val.length > 20) {
+            msgBox.innerHTML = `<span style="color:var(--warn)">👤 正在向 <b>非管理员</b> 发送加密信息</span>`;
+        } else {
+            msgBox.innerHTML = `<span style="color:var(--danger)">⚠️ 请输入正确的 P384 公钥</span>`;
+        }
+    } 
+    // Ed25519 模式
+    else if (algoMode === "3") {
+        msgBox.innerHTML = `<span style="color:var(--warn)">✍️ 正在为数据签名。实际不会加密数据。</span>`;
+    }
+    else if (algoMode === "0") {
+        msgBox.innerHTML = `<span style="color:var(--danger)">⚠️ CBC已停止支持，数据难以恢复且易被篡改。请转为GCM。</span>`;}
+    // 其他模式
+    else {
+        msgBox.innerHTML = "";
+    }
+}
+function backupTool() {
+    try {
+        // 1. 获取当前页面的完整 HTML（原有逻辑不变）
+        let htmlContent = document.documentElement.outerHTML;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlContent, 'text/html');
+        const clearIds = ['res-show-area', 'decode-input', 'd-txt-area', 'log'];
+        clearIds.forEach(id => {
+            const el = doc.getElementById(id);
+            if (el) el.value = el.textContent = '';
+        });
+        const hideIds = ['e-result', 'd-result', 'log', 'e-file-info', 'd-file-info'];
+        hideIds.forEach(id => {
+            const el = doc.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+        const finalHtml = "<!DOCTYPE html>\n" + doc.documentElement.outerHTML;
+        
+        // 2. 创建下载（核心修改：将a标签挂载到loader-screen，而非body）
+        const blob = new Blob([finalHtml], {type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        
+        // --- 核心修改开始 ---
+        const loaderScreen = $('loader-screen');
+        // 若在URL模式（loader-screen显示），则将a标签挂载到loader-screen内；否则挂载到body
+        const parentEl = loaderScreen && window.getComputedStyle(loaderScreen).display !== 'none' 
+            ? loaderScreen 
+            : document.body;
+        // --- 核心修改结束 ---
+        
+        // 文件名生成（原有逻辑不变）
+        const now = new Date();
+        const f = (v) => v.toString().padStart(2, '0');
+        const yy = now.getFullYear().toString().slice(-2);
+        const ts = `${yy}${f(now.getMonth()+1)}${f(now.getDate())}-${f(now.getHours())}${f(now.getMinutes())}${f(now.getSeconds())}`;
+        a.download = `${ts}-AmbWebCrypt.html`;
+        a.href = url;
+        
+        // 挂载并触发下载（父元素改为parentEl）
+        parentEl.appendChild(a);
+        a.click();
+        
+        // 3. 清理（原有逻辑不变）
+        setTimeout(() => {
+            parentEl.removeChild(a); // 同步修改移除的父元素
+            URL.revokeObjectURL(url);
+        }, 100);
+        
+        alert("工具备份已触发！文件名：" + a.download);
+    } catch (e) {
+        alert("备份失败: " + e.message);
+    }
+}
+// 1. 模式切换函数：增加单位切换逻辑，并处理默认值和可选的跳过重处理
+function handleModeChange(show, valFromParam, skipReproc = false) {// 增加了 valFromParam 和 skipReproc
+    const valInput = $('img-val');
+    const unitText = $('unit-text');
+    const mode = document.querySelector('input[name="rmode"]:checked').value;
+
+    // 动态更新单位文字
+    if (mode === 'pixel') unitText.textContent = "万";
+    else if (mode === 'short') unitText.textContent = "px"; // 短边和长边都显示 px
+    else if (mode === 'long') unitText.textContent = "px";
+    else if (mode === 'orig') unitText.textContent = "%";
+
+    let actualValueToSet = valInput.value; // 默认保留当前值
+
+    // 如果通过参数明确指定了值，则使用该值
+    if (valFromParam !== undefined && valFromParam !== null) {
+        actualValueToSet = valFromParam;
+    } else {// 否则，根据当前模式设置默认值
+        if (mode === 'pixel') actualValueToSet = "5";
+        else if (mode === 'short') actualValueToSet = "240";
+        else if (mode === 'long') actualValueToSet = "640";
+        else if (mode === 'orig') actualValueToSet = "100";
+    }
+
+    // 只有当值发生变化时才更新输入框
+    if (valInput.value !== actualValueToSet) {
+        valInput.value = actualValueToSet;
+    }
+    
+    // 只有在没有明确要求跳过时才进行图像重处理
+    if (!skipReproc) {
+        reprocImg(); 
+    }
+}
+function syncBinCheckbox() {
+    const val = $('decode-input').value;
+    const cb = $('is-bin');
+    if (val.includes("二进制")) {
+        cb.checked = true;
+    } else if (val.includes("文本")) {
+        cb.checked = false;
+    }
+}
+let prevPreviewUrl = null; // 放在函数外部或 script 顶端
+let lastProcessingId = 0; // 全局变量
+async function reprocImg() {
+    if (!oFile || !oFile.type || !oFile.type.startsWith('image/')) return;
+    $('e-file-info').style.display = 'block'; // 修复：调整参数时强制显示容器
+    const infoBox = $('e-file-info'), processingId = ++lastProcessingId;
+
+    if (!$('img-comp').checked) {
+        try {
+            eData = new Uint8Array(await oFile.arrayBuffer());
+            infoBox.innerHTML = `<span class="meta-tag">原始: ${oFile.name}</span> <span class="meta-tag">${oFile.size.toLocaleString()} B</span><br><span class="meta-tag">未处理透传</span>`;
+        } catch(e) {}
+        return;
+    }
+    // 下面保持原逻辑，未改动
+    const img = new Image(), reader = new FileReader();
+    reader.onload = e => {
+        img.onload = () => {
+            const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
+            let w = img.width, h = img.height, r = w / h;
+            const m = document.querySelector('input[name="rmode"]:checked').value;
+            let targetW = w, targetH = h, v = parseFloat($('img-val').value) || 0;
+            if (m !== 'orig') {
+                if (m === 'pixel') {
+                    let pixelCount = v * 10000;
+                    if (pixelCount > MAX_PIXELS) pixelCount = MAX_PIXELS;
+                    targetW = Math.sqrt(pixelCount * r); targetH = targetW / r;
+                }
+                else if (m === 'short') {if (w <= h) {targetW = v; targetH = targetW / r; } else {targetH = v; targetW = targetH * r; } }
+                else if (m === 'long') {if (w >= h) {targetW = v; targetH = targetW / r; } else {targetH = v; targetW = targetH * r; } }
+            } else {const scale = v / 100; targetW = w * scale; targetH = h * scale; }
+            canvas.width = Math.round(targetW); canvas.height = Math.round(targetH);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(async b => {
+                if (processingId !== lastProcessingId || !b) return;
+                eData = new Uint8Array(await b.arrayBuffer());
+                if (prevPreviewUrl) URL.revokeObjectURL(prevPreviewUrl); 
+                prevPreviewUrl = URL.createObjectURL(b);
+                infoBox.innerHTML = `<span class="meta-tag">原始: ${oFile.name}</span><br><span class="size-info">WebP: ${canvas.width}x${canvas.height} (${eData.length.toLocaleString()} B)</span><div style="margin-top:10px; border:1px solid #333; background:#000; text-align:center;"><img src="${prevPreviewUrl}" style="max-height:150px; max-width:100%; display:block; margin:0 auto;"></div>`;
+            }, 'image/webp', (parseInt($('img-q').value) || 30) / 100);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(oFile);
+}
+    // 文件名生成：支持前缀
+    function getFullFN(ext, prefix = "") {
+        const now = new Date();
+        const f = (v) => v.toString().padStart(2, '0');
+        const ts = `${now.getFullYear().toString().slice(-2)}${f(now.getMonth()+1)}${f(now.getDate())}-${f(now.getHours())}${f(now.getMinutes())}${f(now.getSeconds())}`;
+        const mainName = `AmbWebCrypt-${VER}-${ts}`;
+        return prefix ? `${prefix}-${mainName}.${ext}` : `${mainName}.${ext}`;
+    }
+let decodeRawText = ""; 
+async function handleFile(fileOrInput, mode) {
+    let f = (fileOrInput instanceof File) ? fileOrInput : fileOrInput.files[0];
+    if (!f) return;
+    if (mode === 'encode') {
+        oFile = f; $('e-file-info').style.display = 'block';
+        if (f.type.startsWith('image/') && $('img-comp').checked) reprocImg();
+        else {
+            eData = new Uint8Array(await f.arrayBuffer());
+            $('e-file-info').innerHTML = `<span class="meta-tag">载入: ${f.name} (${f.size.toLocaleString()} B)</span>`;
+        }
+    } else {
+        decodeFileName = f.name; const buf = await f.arrayBuffer(); decodeRawBuffer = buf;
+        // 三点采样：开头、中间、结尾
+        const view = new Uint8Array(buf), sampleLen = 200;
+        const positions = [0, Math.floor(buf.byteLength/2), Math.max(0, buf.byteLength - sampleLen)];
+        let match = 0, total = 0;
+        positions.forEach(pos => {
+            try {
+                const text = new TextDecoder().decode(view.slice(pos, pos + sampleLen));
+                for(let c of text) { if(c.trim()) { total++; if(C2B[c] !== undefined) match++; } }
+            } catch(e){}
+        });
+        const isText = total > 0 && (match / total) > 0.3;
+        $('is-bin').checked = !isText;
+        $('decode-input').value = `[已载入 (${isText?'文本':'二进制'}) 文件: ${f.name}]`;
+        $('d-file-info').style.display = 'block';
+        $('d-file-info').innerHTML = `<span class="meta-tag">载入: ${f.name} (${f.size.toLocaleString()} B)</span>`;
+        syncBinCheckbox();
+    }
+}
+const ADMIN_ED_PUB_HEX = "310cba5a40091f292e7e48cd1527bd80789bbaac0a922438ff9676b8ebf3febe";
+// P-384 密钥生成函数
+async function generateP384Keys(forceGenerate = false) {
+    const privKeyDisplay = $('p384-priv-key-display');
+    const pubKeyDisplay = $('p384-pub-key-display');
+    const idBox = $('p384-identity-info'); // P-384 专用的身份提示框
+
+    // 更精确地检查 P-384 密钥是否已生成 (通过检查输入框的值是否为默认占位符)
+    const hasKeys = (privKeyDisplay.value !== '尚未生成...' && pubKeyDisplay.value !== '尚未生成...');
+
+    if (hasKeys && !forceGenerate) {
+        if (!confirm("检测到 P-384 密钥已生成。刷新将丢失当前密钥，确定要重新生成吗？")) {
+            return; // 用户取消，不执行生成
+        }
+    }
+    
+    // 准备生成，清空显示并更新状态
+    idBox.innerHTML = "⌛ 正在生成 P-384 密钥...";
+    privKeyDisplay.value = '尚未生成...'; 
+    pubKeyDisplay.value = '尚未生成...';
+
+    try {
+        const algo = {name: "ECDH", namedCurve: "P-384" };
+        const kp = await window.crypto.subtle.generateKey(algo, true, ["deriveKey"]);
+        const pub = await window.crypto.subtle.exportKey("raw", kp.publicKey);
+        const priv = await window.crypto.subtle.exportKey("pkcs8", kp.privateKey);
+
+        privKeyDisplay.value = bufToHex(priv);
+        pubKeyDisplay.value = bufToHex(pub);
+        idBox.innerHTML = " <b class='guest-mark'> 👤 P-384 密钥已生成 </b> "; // P-384 没有管理员身份的概念
+    } catch (e) {
+        alert("P-384 密钥生成失败: " + e.message); 
+        idBox.innerHTML = "P-384 密钥生成失败";
+        privKeyDisplay.value = '尚未生成...'; // 失败时重置
+        pubKeyDisplay.value = '尚未生成...';
+    }
+}// Ed25519 密钥生成函数
+async function generateEd25519Keys(forceGenerate = false) {
+    const privKeyDisplay = $('ed25519-priv-key-display');
+    const pubKeyDisplay = $('ed25519-pub-key-display');
+    const idBox = $('ed25519-identity-info'); // Ed25519 专用的身份提示框
+
+    // 更精确地检查 Ed25519 密钥是否已生成 (通过检查输入框的值是否为默认占位符)
+    const hasKeys = (privKeyDisplay.value !== '尚未生成...' && pubKeyDisplay.value !== '尚未生成...');
+
+    if (hasKeys && !forceGenerate) {
+        if (!confirm("检测到 Ed25519 密钥已生成。刷新将丢失当前密钥，确定要重新生成吗？")) {
+            return; // 用户取消，不执行生成
+        }
+    }
+
+    // 准备生成，清空显示并更新状态
+    idBox.innerHTML = "⌛ 正在生成 Ed25519 密钥...";
+    privKeyDisplay.value = '尚未生成...'; 
+    pubKeyDisplay.value = '尚未生成...';
+
+    try {
+        const algo = {name: "Ed25519" };
+        const kp = await window.crypto.subtle.generateKey(algo, true, ["sign", "verify"]);
+        const pub = await window.crypto.subtle.exportKey("raw", kp.publicKey);
+        const priv = await window.crypto.subtle.exportKey("pkcs8", kp.privateKey);
+
+        const pubHex = bufToHex(pub);
+        privKeyDisplay.value = bufToHex(priv);
+        pubKeyDisplay.value = pubHex;
+
+        // 生成成功后，只显示“Ed25519 密钥已生成”。
+        // 管理员身份的判断只在加载时（switchTab）进行，因为用户不可能生成管理员密钥。
+        idBox.innerHTML = " <b class='guest-mark'> 👤 Ed25519 密钥已生成 </b> ";
+    } catch (e) {
+        alert("Ed25519 密钥生成失败: " + e.message); 
+        idBox.innerHTML = "Ed25519 密钥生成失败";
+        privKeyDisplay.value = '尚未生成...'; // 失败时重置
+        pubKeyDisplay.value = '尚未生成...';
+    }
+}
+// 辅助函数：处理 Ed25519 私钥导入
+async function importEdPrivKey(keyStr) {
+    if (keyStr.length >= 64 && /^[0-9a-fA-F]+$/.test(keyStr)) {
+        const rawPriv = hexToBuf(keyStr);
+        let finalPrivBuf = rawPriv;
+        if (rawPriv.length === 32) {
+            finalPrivBuf = new Uint8Array(48);
+            finalPrivBuf.set(hexToBuf("302e020100300506032b657004220420"));
+            finalPrivBuf.set(rawPriv, 16);
+        }
+        return await window.crypto.subtle.importKey('pkcs8', finalPrivBuf, {name: 'Ed25519' }, false, ['sign']);
+    } else {
+        const seed = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(keyStr));
+        const wrapped = new Uint8Array(48);
+        wrapped.set(hexToBuf("302e020100300506032b657004220420")); 
+        wrapped.set(new Uint8Array(seed), 16);
+        return await window.crypto.subtle.importKey('pkcs8', wrapped, {name: 'Ed25519' }, false, ['sign']);
+    }
+}
+async function doDecode() {
+    const btn = $('btn-do-decode'), 
+          inputArea = $('decode-input'), 
+          isBinChecked = $('is-bin').checked, 
+          keyStr = $('d-key').value.trim();
+    
+    if (!btn || !inputArea) return;
+    btn.disabled = true; 
+    btn.textContent = "⌛ 还原中..."; 
+    
+    await new Promise(r => setTimeout(r, 50));
+    
+    try {
+        let rawBin = null; 
+        const currentVal = inputArea.value;
+        const isPlaceholder = currentVal.includes("已载入") && currentVal.includes("文件:");
+
+        // --- 优化后的逻辑逻辑 ---
+        // 只有当“勾选了BIN”且“确实存在物理文件流”时，才使用原始二进制
+        if (isBinChecked && decodeRawBuffer) {
+            rawBin = new Uint8Array(decodeRawBuffer);
+        } 
+        // 否则（没勾选BIN，或者勾选了BIN但没传文件只是粘贴了文字），一律尝试解析汉字编码
+        else {
+            // 如果是占位符，说明文件是拖入的TXT，去读文件流转出的汉字；否则读框里的文字
+            let textToParse = (isPlaceholder && decodeRawBuffer) ? new TextDecoder().decode(decodeRawBuffer) : currentVal;
+            let temp = new Uint8Array(textToParse.length), count = 0;
+            
+            for (let i = 0; i < textToParse.length; i++) {
+                const b = C2B[textToParse[i]]; 
+                if (b !== undefined) temp[count++] = b;
+            }
+            
+            if (count === 0) {
+                throw new Error(isBinChecked ? "未检测到物理文件流，且文本框内无有效编码" : "无有效编码字符");
+            }
+            rawBin = temp.slice(0, count);
+        }
+        // --- 逻辑结束 ---
+
+        const result = await coreRestore(rawBin, keyStr, currentVal, decodeFileName, decodeRawBuffer);
+        if (result) { 
+            dData = result; 
+            renderDec(result); 
+        } else {
+            throw new Error("还原失败");
+        }
+    } catch (e) { 
+        alert("❌ 失败: " + e.message); 
+    } finally { 
+        btn.disabled = false; 
+        btn.textContent = "🔓 执行还原"; 
+    }
+}
+async function tryRestore(rawBin, pwd, mode) {
+    try {
+        const keyEncoder = new TextEncoder();
+        const data = new Uint8Array(rawBin);
+        const cleanPwd = pwd ? pwd.trim() : "";
+
+        // 模式 0: CBC (旧版兼容)
+        if (mode === 0) {
+            if (data.length < 16) return null;
+            const iv = data.slice(0, 16), ciphertext = data.slice(16);
+            const keyHash = await window.crypto.subtle.digest('SHA-256', keyEncoder.encode(pwd));
+            const cryptoKey = await window.crypto.subtle.importKey('raw', keyHash, {name: 'AES-CBC'}, false, ['decrypt']);
+            return new Uint8Array(await window.crypto.subtle.decrypt({name: 'AES-CBC', iv: iv}, cryptoKey, ciphertext));
+        }
+
+        // 模式 1: GCM
+        if (mode === 1) {
+            if (data.length < 28) return null;
+            const iv = data.slice(0, 12), ciphertext = data.slice(12);
+            const keyHash = await window.crypto.subtle.digest('SHA-256', keyEncoder.encode(pwd));
+            const cryptoKey = await window.crypto.subtle.importKey('raw', keyHash, {name: 'AES-GCM'}, false, ['decrypt']);
+            return new Uint8Array(await window.crypto.subtle.decrypt({name: 'AES-GCM', iv: iv}, cryptoKey, ciphertext));
+        }
+
+        // 模式 2: P384
+        if (mode === 2) {
+            if (data.length < 109) return null;
+            const privBuf = hexToBuf(pwd);
+            if (!privBuf) return null;
+            const privKey = await window.crypto.subtle.importKey('pkcs8', privBuf, {name: 'ECDH', namedCurve: 'P-384'}, false, ['deriveKey']);
+            const pubKey = await window.crypto.subtle.importKey('raw', data.slice(0, 97), {name: 'ECDH', namedCurve: 'P-384'}, false, []);
+            const sharedKey = await window.crypto.subtle.deriveKey({name: 'ECDH', public: pubKey}, privKey, {name: 'AES-GCM', length: 256}, false, ['decrypt']);
+            return new Uint8Array(await window.crypto.subtle.decrypt({name: 'AES-GCM', iv: data.slice(97, 109)}, sharedKey, data.slice(109)));
+        }
+
+        // 模式 3 & 4: Ed25519 逻辑修复
+        if (mode === 3 || mode === 4) {
+            const sig = data.slice(0, 64);
+            const payload = data.slice(64);
+            edIdentity.isEd = true;
+            edIdentity.sigValid = false;
+
+            // 确定验证用的公钥池
+            let pubKeys = [];
+            if (mode === 4) {
+                // 模式 4：始终且仅用管理员公钥验证签名
+                pubKeys = [ADMIN_ED_PUB_HEX.toLowerCase()];
+            } else {
+                // 模式 3：优先用密码框里的公钥，没填就试管理员
+                if (cleanPwd && cleanPwd.length >= 64) pubKeys.push(cleanPwd.toLowerCase());
+                pubKeys.push(ADMIN_ED_PUB_HEX.toLowerCase());
+            }
+
+            // 验证签名
+            for (let pkHex of pubKeys) {
+                try {
+                    const pubKeyBuf = hexToBuf(pkHex);
+                    const pubKey = await window.crypto.subtle.importKey('raw', pubKeyBuf, {name: 'Ed25519'}, false, ['verify']);
+                    if (await window.crypto.subtle.verify({name: 'Ed25519'}, pubKey, sig, payload)) {
+                        edIdentity.sigValid = true;
+                        edIdentity.usedPubKey = pkHex;
+                        break;
+                    }
+                } catch (e) {}
+            }
+
+            // 模式 4 解密 GCM 部分
+            if (mode === 4) {
+                if (!pwd) return null;
+                const iv = payload.slice(0, 12), ciphertext = payload.slice(12);
+                const keyHash = await window.crypto.subtle.digest('SHA-256', keyEncoder.encode(pwd));
+                const cryptoKey = await window.crypto.subtle.importKey('raw', keyHash, {name: 'AES-GCM'}, false, ['decrypt']);
+                return new Uint8Array(await window.crypto.subtle.decrypt({name: 'AES-GCM', iv: iv}, cryptoKey, ciphertext));
+            }
+
+            return payload; // 模式 3 直接返回
+        }
+
+        if (mode === 5) return data;
+        return null;
+    } catch (e) { return null; }
+}
+window.onload = async () => {
+    const p = new URLSearchParams(window.location.search);
+    const setVal = (id, val) => {if(val && $(id)) $(id).value = val; };
+    
+    const generalPwd = p.get('pwd'), enPwd = p.get('enpwd'), dePwd = p.get('depwd');
+    const gzipVal = p.get('gzip'), webpqVal = p.get('webpq'), ptVal = p.get('webpt'), prVal = p.get('webpr'), targetUrl = p.get('URL'); 
+    
+    if (generalPwd) {setVal('e-key', generalPwd); setVal('d-key', generalPwd); }
+    if (enPwd) setVal('e-key', enPwd); if (dePwd) setVal('d-key', dePwd);
+    if (gzipVal !== null) {const gz = $('gzip-enable'); if(gz) gz.checked = (gzipVal === 't' || gzipVal === '1'); }
+    if (webpqVal) setVal('img-q', webpqVal);
+    if (prVal) {setVal('img-val', prVal); if ($('img-comp').checked) reprocImg(); }
+    if (ptVal) {
+        const ptMap = {"1": "pixel", "2": "short", "3": "long", "4": "orig" };
+        const mode = ptMap[ptVal];
+        const r = document.querySelector(`input[name="rmode"][value="${mode}"]`);
+        if (r) {r.checked = true; handleModeChange(true, null, !!prVal); }
+    }
+
+    if (targetUrl) {
+        const loader = $('loader-screen');
+        const bodyChildren = document.body.children;
+        for (let i = 0; i < bodyChildren.length; i++) {
+            if (bodyChildren[i].id !== 'loader-screen' && bodyChildren[i].id !== 'drop-hint') {
+                bodyChildren[i].style.display = 'none';
+            }
+        }
+        if (loader) loader.style.display = 'block';
+        
+        const s1Status = $('step1-status'), s1Fill = $('step1-fill'), s1Stats = $('step1-stats'), progCont = $('progress-container');
+        const s2Status = $('step2-status'), s2Fill = $('step2-fill');
+        const s3Status = $('step3-status'), manualDlBtn = $('manual-dl-btn');
+        
+        try {
+            const response = await fetch(targetUrl);
+            if (!response.ok) throw new Error(`下载失败: ${response.status}`);
+            
+            const total = parseInt(response.headers.get('content-length'), 10);
+            if (!isNaN(total)) progCont.style.display = 'block';
+            
+            const reader = response.body.getReader();
+            let loaded = 0, chunks = [], startTime = Date.now();
+            
+            while(true) {
+                const {done, value} = await reader.read();
+                if (done) break; chunks.push(value); loaded += value.length;
+                const elapsed = (Date.now() - startTime) / 1000;
+                const speed = loaded / elapsed;
+                if (!isNaN(total)) {
+                    const percent = Math.round((loaded / total) * 100);
+                    s1Fill.style.width = percent + "%";
+                    s1Stats.innerText = `${percent}% | ${formatSpeed(speed)} | 剩余: ${formatTime((total - loaded) / speed)}`;
+                } else {
+                    s1Stats.innerText = `${(loaded/1024/1024).toFixed(1)}MB | ${formatSpeed(speed)}`;
+                }
+            }
+
+            // 拼装原始二进制
+            const rawBin = new Uint8Array(loaded);
+            let pos = 0;
+            for(let chunk of chunks) { rawBin.set(chunk, pos); pos += chunk.length; }
+            chunks = null;
+
+            s1Status.innerText = "(已完成) 1.下载原始数据流"; s1Status.style.color = "var(--primary)";
+            s2Status.innerText = "(进行中) 2. 解密数据"; s2Status.style.color = "var(--warn)";
+
+            decodeFileName = decodeURIComponent(targetUrl.split('/').pop());
+
+            // --- 核心修复：始终信任为 BIN，sniffText 传空字符串强制跳过文字识别 ---
+            const result = await coreRestore(rawBin, dePwd || generalPwd || "", "", decodeFileName, rawBin);
+            
+            if (result) {
+                dData = result; renderDec(result); 
+                s2Fill.style.width = "100%";
+                s2Status.innerText = "(已完成) 2. 解密数据"; s2Status.style.color = "var(--primary)";
+                s3Status.innerText = "(已完成) 3. 触发下载"; s3Status.style.color = "var(--primary)";
+                manualDlBtn.disabled = false;
+                manualDlBtn.style.background = "var(--primary)"; manualDlBtn.style.color = "#000";
+                dlDec(); 
+            } else throw new Error("还原失败：结果无效");
+        } catch (e) {
+            s1Status.innerText = "(失败) " + e.message; s1Status.style.color = "var(--danger)";
+            s2Status.innerText = "(终止) 无法处理数据";
+        }
+    }
+};
+async function doEncode() {
+    const btn = $('btn-do-encode'), encodeText = $('encode-text'), gzipEnable = $('gzip-enable'), algoEl = document.querySelector('input[name="algo"]:checked'), eKey = $('e-key'), eStats = $('e-stats'), resShowArea = $('res-show-area'), eResult = $('e-result');
+    if (!btn || !encodeText) return;
+    btn.disabled = true; btn.textContent = "⌛ 处理中...";
+    const encodeStartTime = Date.now();
+    await new Promise(r => setTimeout(r, 50));
+    try {
+        const txt = encodeText.value.trim(), algoMode = algoEl.value, keyStr = eKey.value.trim();
+        const oldH = parseSixHeader("", txt, eData) || { isValid: false, firstAlgo: -1 }; // 兜底默认值
+        // 判定“吱”模式：Algo 3 签名，且输入内容已经是 Algo 1 加密
+        const isSigningGCM = (oldH.isValid && oldH.firstAlgo === 1 && algoMode === "3");
+        let processedBin = (eData && eData.length > 0) ? eData : (isSigningGCM ? new Uint8Array([...(txt.includes("，")?txt.split("，")[1]:txt)].filter(c => MAP.includes(c)).map(c => C2B[c])) : new TextEncoder().encode(txt));
+        if (!processedBin || processedBin.length === 0) throw new Error("内容为空");
+        const cksum = await CryptoUtils.getShaChecksum(processedBin);
+        let finalBin = processedBin, featFlags = 0;
+        if (gzipEnable.checked && !isSigningGCM) {
+            try { const gzipped = pako.gzip(processedBin); if (gzipped.length < processedBin.length) { finalBin = gzipped; featFlags |= 0x02; } } catch (e) {}
+        }
+        if (algoMode === "3") {
+            if(!keyStr) throw new Error("签名需要私钥");
+            featFlags |= 0x01; const privKey = await importEdPrivKey(keyStr);
+            const sig = await window.crypto.subtle.sign({name: 'Ed25519' }, privKey, finalBin);
+            const combined = new Uint8Array(64 + finalBin.length); combined.set(new Uint8Array(sig)); combined.set(finalBin, 64);
+            finalBin = combined;
+        } else if (keyStr) {
+            featFlags |= 0x01; const keyEnc = new TextEncoder(), keyHash = await window.crypto.subtle.digest('SHA-256', keyEnc.encode(keyStr));
+            let encrypted, combined;
+            if (algoMode === "0") {
+                const iv = crypto.getRandomValues(new Uint8Array(16)), key = await crypto.subtle.importKey('raw', keyHash, 'AES-CBC', false, ['encrypt']);
+                encrypted = await crypto.subtle.encrypt({name:'AES-CBC', iv}, key, finalBin);
+                combined = new Uint8Array(16 + encrypted.byteLength); combined.set(iv); combined.set(new Uint8Array(encrypted), 16);
+            } else if (algoMode === "1") {
+                const iv = crypto.getRandomValues(new Uint8Array(12)), key = await crypto.subtle.importKey('raw', keyHash, 'AES-GCM', false, ['encrypt']);
+                encrypted = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, finalBin);
+                combined = new Uint8Array(12 + encrypted.byteLength); combined.set(iv); combined.set(new Uint8Array(encrypted), 12);
+            } else if (algoMode === "2") {
+                const ephKp = await crypto.subtle.generateKey({name:'ECDH', namedCurve:'P-384'}, true, ['deriveKey']), remotePub = await crypto.subtle.importKey('raw', hexToBuf(keyStr), {name:'ECDH', namedCurve:'P-384'}, false, []);
+                const shared = await crypto.subtle.deriveKey({name:'ECDH', public:remotePub}, ephKp.privateKey, {name:'AES-GCM', length:256}, false, ['encrypt']);
+                const iv = crypto.getRandomValues(new Uint8Array(12)), ephPub = await crypto.subtle.exportKey('raw', ephKp.publicKey);
+                encrypted = await crypto.subtle.encrypt({name:'AES-GCM', iv}, shared, finalBin);
+                combined = new Uint8Array(ephPub.byteLength + 12 + encrypted.byteLength); combined.set(new Uint8Array(ephPub)); combined.set(iv, ephPub.byteLength); combined.set(new Uint8Array(encrypted), ephPub.byteLength+12);
+            }
+            finalBin = combined;
+        }
+        window.resBin = finalBin; isEncDataReady = true;
+        let finalAlgo = isSigningGCM ? 4 : parseInt(algoMode);
+        let h = HEX_MAP[(cksum>>12)&0xF] + HEX_MAP[(cksum>>8)&0xF] + HEX_MAP[(cksum>>4)&0xF] + HEX_MAP[cksum&0xF] + HEX_MAP[finalAlgo] + HEX_MAP[featFlags];
+        window.resHeader = h;
+        window.resTxt = finalBin.length > PLIM ? `${h}，[规模较大（${finalBin.length.toLocaleString()} B），已禁用预览]` : `${h}，${Array.from(finalBin).map(b => B2C[b]).join('')}`;
+        eStats.innerHTML = `规模: ${finalBin.length.toLocaleString()} B | 算法: ${getAlgoName(finalAlgo)} | 用时: ${((Date.now()-encodeStartTime)/1000).toFixed(3)}s`;
+        resShowArea.value = window.resTxt; eResult.style.display = "block";
+    } catch (e) { alert(`❌ 编码失败：${e.message}`); }
+    finally { btn.disabled = false; btn.textContent = "🚀 执行编码"; }
+}
+// 搜索并替换整个 dlRes 函数
+function dlRes(t) {
+    if (!isEncDataReady || !window.resBin || window.resBin.length === 0) {
+        alert("❌ 无有效加密数据，请先点击【执行编码】");
+        return;
+    }
+    try {
+        let blob;
+        if (t === 'txt') {
+            // 核心修复：直接将数组交给 Blob，不要使用 .join('')，防止内存爆表
+            const chunks = [window.resHeader, "，"];
+            for (let i = 0; i < window.resBin.length; i++) {
+                chunks.push(B2C[window.resBin[i]] || B2C[0]);
+            }
+            blob = new Blob(chunks, {type: 'text/plain;charset=utf-8' });
+        } else {
+            blob = new Blob([window.resBin], {type: 'application/octet-stream' });
+        }
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const safeHeader = (window.resHeader || "data").replace(/[\\/:*?"<>|]/g, "_");
+        a.download = getFullFN(t, t === 'bin' ? safeHeader : "");
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+
+        setTimeout(() => {
+            if (document.body.contains(a)) document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 1500);
+    } catch (e) {
+        alert(`❌ 下载失败：内存不足或数据过大`);
+    }
+}
+function clearAll(m) {
+    if (m === 'encode') {
+        $('encode-text').value = '';
+        $('e-file-info').innerHTML = '';
+        $('e-result').style.display = 'none';
+        if($('enc-identity-msg')) $('enc-identity-msg').innerHTML = ''; // 清空加密身份
+        const eInput = $('encode-file-input');
+        if (eInput) eInput.value = '';
+        if (prevPreviewUrl) { URL.revokeObjectURL(prevPreviewUrl); prevPreviewUrl = null; }
+        eData = null; oFile = null;
+    } else {
+        $('decode-input').value = '';
+        $('d-file-info').innerHTML = '';
+        $('d-result').style.display = 'none';
+        // --- 新增：清空所有还原相关的标识和预警 ---
+        if($('dec-identity-msg')) $('dec-identity-msg').innerHTML = '';
+        if($('loader-identity')) $('loader-identity').innerHTML = '';
+        if($('dec-warning-msg')) $('dec-warning-msg').style.display = 'none';
+        if($('loader-warning-msg')) $('loader-warning-msg').style.display = 'none';
+        edIdentity = {isEd: false, isAdmin: false };
+        decWarning = {active: false, message: "" };
+        // ---------------------------------------
+        const dInput = document.querySelector('#decode-tab input[type="file"]');
+        if (dInput) dInput.value = '';
+        if (currentPreviewUrl) URL.revokeObjectURL(currentPreviewUrl);
+        decodeRawBuffer = null; decodeRawText = ""; dData = null;
+    }
+    hideLog();
+}
+// 全局标记：避免重复绑定事件
+let isEncodeBtnBinded = false;
+// 1. DOM加载完成后绑定按钮点击事件（确保能找到按钮元素）
+document.addEventListener('DOMContentLoaded', () => {
+    const encodeBtn = $('btn-do-encode');
+    const encodeText = $('encode-text');
+    const eResult = $('e-result');
+    // 仅绑定一次事件，防止重复触发
+    if (encodeBtn && !isEncodeBtnBinded) {
+        encodeBtn.addEventListener('click', () => {
+            // 调用编码逻辑前，先确认核心元素存在
+            if (!encodeText || !eResult) {
+                alert("❌ 页面元素加载不完整，请刷新页面重试");
+                return;
+            }
+            doEncode();
+        });
+        isEncodeBtnBinded = true;
+    }
+});
+function switchTab(tabName) {
+    // 1. 切换按钮状态
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        // 自动匹配当前点击或指定的标签名
+        if (btn.getAttribute('onclick').includes(`'${tabName}'`)) {
+            btn.classList.add('active');
+        }
+    });
+
+    // 2. 切换面板显示
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    const targetTab = $(tabName + '-tab');
+    if (targetTab) targetTab.classList.add('active');
+
+    // 3. 辅助交互
+    hideLog();
+    window.scrollTo(0, 0); // 切换时回到顶部，方便手机操作
+
+    // 4. 密钥生成页面的特殊逻辑
+    if (tabName === 'keygen') {
+        const p384Priv = $('p384-priv-key-display');
+        const edPub = $('ed25519-pub-key-display');
+        const p384IdBox = $('p384-identity-info');
+        const edIdBox = $('ed25519-identity-info');
+
+        // 检查是否已有密钥 (判断长度是否符合 Hex 格式)
+        const p384Exist = p384Priv && p384Priv.value.length > 20 && !p384Priv.value.includes('尚未');
+        const edExist = edPub && edPub.value.length > 20 && !edPub.value.includes('尚未');
+
+        // 仅在完全没有密钥时才自动生成，防止切回来时覆盖掉用户正在使用的密钥
+        if (!p384Exist) {
+            generateP384Keys(true); 
+        } else {
+            p384IdBox.innerHTML = " <b class='guest-mark' style='color:var(--primary)'> 👤 P-384 密钥已就绪 </b> ";
+        }
+
+        if (!edExist) {
+            generateEd25519Keys(true); 
+        } else {edIdBox.innerHTML = " <b class='guest-mark' style='color:var(--primary)'> 👤 Ed25519 密钥已就绪 </b> ";
+        }
+    }
+}
+function showLog(m, type="danger"){
+    const l=$('log'); l.textContent=m; l.style.display='block'; 
+    l.style.color = type === "warn" ? "var(--warn)" : "var(--danger)";
+    alert(m);
+}
+// 替换原有的 copyKey, copyRes, fallbackCopy
+async function copyTo(text, msg = "已复制") {
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            const area = document.createElement('textarea');
+            area.value = text;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand('copy');
+            document.body.removeChild(area);
+        }
+        alert(msg);
+    } catch (e) {
+        alert("复制失败，请手动选择复制");
+    }
+}
+
+// 对应的 copyRes 简化版
+async function copyRes() {
+    if (!window.resBin) return alert("没有内容可复制");
+    if (window.resBin.length > 2000000) return alert("数据过大，请使用【下载TXT】");
+    const chunks = [window.resHeader, "，"];
+    for (let i = 0; i < window.resBin.length; i++) chunks.push(B2C[window.resBin[i]]);
+    copyTo(chunks.join(''), "全量编码已复制");
+}
+
+// 对应的 copyKey 简化版
+function copyKey(id) {
+    const val = $(id).value;
+    if (val && !val.includes("尚未")) copyTo(val, "密钥已复制");
+}
+function hideLog(){$('log').style.display='none'; }
+    // 拖拽逻辑
+    const dh = $('drop-hint'); let dc = 0;
+    document.addEventListener('dragenter', e=>{e.preventDefault(); dc++; dh.classList.add('show'); });
+    document.addEventListener('dragleave', e=>{e.preventDefault(); dc--; if(dc<=0) dh.classList.remove('show'); });
+    document.addEventListener('dragover', e=>e.preventDefault());
+    document.addEventListener('drop', e=>{
+        e.preventDefault(); dh.classList.remove('show'); dc=0;
+        handleFile(e.dataTransfer.files[0], $('encode-tab').classList.contains('active') ? 'encode' : 'decode');
+    });
+function renderDec(bin) {
+    const loaderScreen = $('loader-screen');
+    const isLoaderActive = loaderScreen && window.getComputedStyle(loaderScreen).display !== 'none';
+    const warningBox = $(isLoaderActive ? 'loader-warning-msg' : 'dec-warning-msg');
+
+    // 1. 校验和警告处理
+    if (warningBox) {
+        warningBox.style.display = decWarning.active ? "block" : "none";
+        warningBox.innerHTML = decWarning.active ? decWarning.message : "";
+    }
+    if (currentPreviewUrl) { URL.revokeObjectURL(currentPreviewUrl); currentPreviewUrl = null; }
+    if (!bin) return;
+
+    // 2. 映射对应的 UI 容器
+    const ui = isLoaderActive ? {
+        result: $('loader-result'), 
+        stats: $('loader-stats'), 
+        identity: $('loader-identity'),
+        preImg: $('loader-preview-img'), 
+        imgCont: $('loader-img'),
+        preTxt: $('loader-preview-txt'), 
+        txtArea: $('loader-txt-area')
+    } : {
+        result: $('d-result'), 
+        stats: $('d-stats'), 
+        identity: $('dec-identity-msg'),
+        preImg: $('d-preview-img'), 
+        imgCont: $('d-img'),
+        preTxt: $('d-preview-txt'), 
+        txtArea: $('d-txt-area')
+    };
+
+    if (ui.result) ui.result.style.display = 'block';
+    const ext = getAutoExtension(bin).toLowerCase();
+    
+    // 3. 统计信息显示
+    const rawScore = window.lastDecScore || 0;
+    const statsInfo = window.decryptStats || {};
+    if (ui.stats) {
+        ui.stats.textContent = `${bin.length.toLocaleString()} B` + (ext ? ` [${ext.toUpperCase().slice(1)}]` : ' [RAW]') +
+                               ` | 算法:${getAlgoName(window.lastDecMode)}` +
+                               ` | 评分: ${rawScore.toFixed(3)}` + 
+                               ` | 用时: ${statsInfo.usedTime || '0.00'}s`;
+    }
+
+    // 4. 【核心修复】读取全局解密身份 window.edIdentity
+    const activeEd = window.edIdentity || { isEd: false };
+    if (ui.identity) {
+        if (activeEd.isEd) {
+            ui.identity.style.display = "block";
+            if (activeEd.sigValid) {
+                // 判断是否为管理员
+                const isAdmin = (activeEd.usedPubKey === ADMIN_ED_PUB_HEX.toLowerCase());
+                
+                if (isAdmin) {
+                    ui.identity.innerHTML = `<span style="color:var(--primary)">✅ 该信息由 <b>🛡️ 管理员</b> 签名发布</span>`;
+                } else {
+                    // 仅在 URL 下载页模式 且 非管理员时，显示前16位公钥
+                    let pubSuffix = (isLoaderActive && activeEd.usedPubKey) 
+                        ? `<br><small style="color:#888; font-size:0.75rem;">验证公钥: ${activeEd.usedPubKey.slice(0, 16)}...</small>` 
+                        : "";
+                    ui.identity.innerHTML = `<span style="color:var(--warn)">✅ 该信息由 <b>👤 非管理员</b> 签名发布</span>${pubSuffix}`;
+                }
+            } else {
+                ui.identity.innerHTML = `<span style="color:var(--danger)">❌ <b>身份签名验证失败</b> (内容可能被篡改)</span>`;
+            }
+        } else {
+            ui.identity.style.display = "none";
+        }
+    }
+
+    // 5. 媒体/文本预览逻辑
+    const isImage = ['.png', '.jpg', '.gif', '.webp', '.avif', '.tif', '.bmp'].includes(ext);
+    const isMedia = ['.mp4', '.mkv', '.ogg', '.webm', '.mp3', '.m4a', '.wav', '.flac', '.ts', '.flv', '.avi', '.mid'].includes(ext);
+
+    if (isImage || isMedia) {
+        if (ui.preTxt) ui.preTxt.style.display = 'none';
+        currentPreviewUrl = URL.createObjectURL(new Blob([bin]));
+        if (ui.imgCont) {
+            ui.imgCont.innerHTML = isImage ? 
+                `<img src="${currentPreviewUrl}" style="max-width:100%; border:1px solid #333; margin-top:10px;">` :
+                `<video src="${currentPreviewUrl}" controls style="max-width:100%; margin-top:10px; background:#000;"></video>`;
+        }
+        if (ui.preImg) ui.preImg.style.display = 'block';
+    } else {
+        if (ui.preImg) ui.preImg.style.display = 'none';
+        try {
+            const text = new TextDecoder("utf-8", { fatal: false }).decode(bin.slice(0, 100000));
+            if (ui.txtArea) ui.txtArea.value = text + (bin.length > 100000 ? "\n\n(已达到预览上限，请下载文件)" : "");
+            if (ui.preTxt) ui.preTxt.style.display = 'block';
+        } catch (e) { 
+            if (ui.txtArea) ui.txtArea.value = "[二进制或不支持预览的格式]"; 
+            if (ui.preTxt) ui.preTxt.style.display = 'block';
+        }
+    }
+}
+</script>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js')}</script>
+
+</body></html>
